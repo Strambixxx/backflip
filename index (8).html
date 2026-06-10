@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Backflip Counter</title>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --rot: #ed2939;
+    --rot-dunkel: #7a0f18;
+    --gold: #ffd23f;
+    --schwarz: #0a0a0a;
+  }
+
+  body {
+    background: transparent;
+    font-family: 'Bungee', cursive;
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+
+  .banner {
+    position: relative;
+    background: var(--schwarz);
+    border: 4px solid #fff;
+    border-radius: 12px;
+    padding: 10px 16px 12px;
+    width: 440px;
+    max-width: 96vw;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 6px 22px rgba(237, 41, 57, 0.45);
+    transition: box-shadow 0.3s, border-color 0.3s, transform 0.3s;
+  }
+
+  .banner.almost {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold), 0 6px 30px rgba(255, 210, 63, 0.6);
+    animation: shake 0.45s ease-in-out infinite;
+  }
+  .banner.done {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 4px var(--gold), 0 0 50px rgba(255, 210, 63, 0.8);
+    animation: pop-banner 0.6s ease-out;
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    25%      { transform: translateX(-2px) rotate(-0.4deg); }
+    75%      { transform: translateX(2px) rotate(0.4deg); }
+  }
+  @keyframes pop-banner {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.05) rotate(-1deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+
+  /* Zeile 1: Flagge + Headline */
+  .top { display: flex; align-items: center; justify-content: center; gap: 10px; }
+
+  .flag {
+    width: 38px; height: 26px;
+    border-radius: 4px; overflow: hidden; flex-shrink: 0;
+    border: 2px solid #fff;
+    display: flex; flex-direction: column;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+  }
+  .flag div { flex: 1; }
+
+  .headline {
+    color: #fff;
+    font-size: 18px;
+    line-height: 1.05;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    text-shadow: 2px 2px 0 #000;
+    text-align: center;
+  }
+  .headline .zahl { color: var(--rot); }
+
+  /* Zeile 2: Zähler + Balken nebeneinander */
+  .row { display: flex; align-items: center; gap: 12px; width: 100%; }
+
+  .score {
+    display: flex; align-items: baseline; gap: 4px;
+    flex-shrink: 0;
+    font-size: 30px; line-height: 1; color: #fff;
+    text-shadow: 2px 2px 0 #000;
+  }
+  .score .count {
+    color: var(--rot); background: #fff;
+    padding: 2px 10px; border-radius: 8px;
+    text-shadow: none; display: inline-block;
+    min-width: 58px; text-align: center;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+    transition: transform 0.18s;
+  }
+  .score .count.update { transform: scale(1.18); }
+  .score .ziel { color: rgba(255, 255, 255, 0.85); font-size: 20px; }
+
+  .bar {
+    position: relative; flex: 1;
+    height: 16px;
+    background: var(--rot-dunkel);
+    border: 2px solid #fff; border-radius: 999px;
+    overflow: hidden;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+  }
+  .bar .fill {
+    height: 100%; width: 0%;
+    background: repeating-linear-gradient(45deg, var(--rot), var(--rot) 10px, #ff4757 10px, #ff4757 20px);
+    border-radius: 999px;
+    transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .banner.done .bar .fill {
+    background: repeating-linear-gradient(45deg, var(--gold), var(--gold) 10px, #ffe680 10px, #ffe680 20px);
+  }
+
+  .cta {
+    color: var(--gold);
+    font-size: 11px; letter-spacing: 0.4px;
+    text-transform: uppercase; text-align: center;
+    text-shadow: 1px 1px 0 #000;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .banner.almost, .banner.done { animation: none; }
+  }
+</style>
+</head>
+<body>
+  <canvas id="confetti"></canvas>
+
+  <div class="banner" id="banner">
+    <div class="top">
+      <div class="flag">
+        <div style="background:var(--rot)"></div>
+        <div style="background:#fff"></div>
+        <div style="background:var(--rot)"></div>
+      </div>
+      <div class="headline" id="htext">Backflip bei <span class="zahl">100</span> Österreichern</div>
+    </div>
+
+    <div class="row">
+      <div class="score">
+        <span class="count" id="counter">0</span>
+        <span class="ziel" id="ziel">/ 100</span>
+      </div>
+      <div class="bar"><div class="fill" id="fill"></div></div>
+    </div>
+
+    <div class="cta" id="cta">Noch 100 bis zum Backflip 🤸</div>
+  </div>
+
+<script>
+  /* ===================== EINSTELLUNGEN ===================== */
+  const GOAL = 100;
+  const COUNT_MODE = 'viewers';   // 'viewers' = Zuschauerzahl | 'keyword' = Chat-Stichwort
+  const KEYWORD = '🇦🇹';
+  /* ======================================================== */
+
+  const banner    = document.getElementById('banner');
+  const counterEl = document.getElementById('counter');
+  const zielEl    = document.getElementById('ziel');
+  const fill      = document.getElementById('fill');
+  const cta       = document.getElementById('cta');
+  const htext     = document.getElementById('htext');
+
+  zielEl.textContent = '/ ' + GOAL;
+
+  let current = 0;
+  let goalReached = false;
+  const keywordUsers = new Set();
+
+  function render(value) {
+    const shown = Math.min(value, GOAL);
+    const pct   = Math.min(value / GOAL, 1) * 100;
+
+    counterEl.textContent = shown;
+    fill.style.width = pct + '%';
+    counterEl.classList.add('update');
+    setTimeout(() => counterEl.classList.remove('update'), 180);
+
+    if (value >= GOAL) {
+      if (!goalReached) reachGoal();
+    } else if (value >= GOAL * 0.9) {
+      banner.classList.add('almost');
+      cta.textContent = 'Nur noch ' + (GOAL - value) + ' 🔥🔥';
+    } else {
+      banner.classList.remove('almost');
+      cta.textContent = 'Noch ' + (GOAL - value) + ' bis zum Backflip 🤸';
+    }
+  }
+
+  function setCount(value) {
+    if (value === current) return;
+    current = value;
+    render(value);
+  }
+
+  function reachGoal() {
+    goalReached = true;
+    banner.classList.remove('almost');
+    banner.classList.add('done');
+    htext.innerHTML = '🤸 Zeit für den <span class="zahl">Backflip!</span> 🤸';
+    cta.textContent = GOAL + ' Österreicher — versprochen ist versprochen!';
+    burstConfetti();
+    setInterval(burstConfetti, 1400);
+  }
+
+  /* ===================== KONFETTI ===================== */
+  const cv = document.getElementById('confetti');
+  const ctx = cv.getContext('2d');
+  let parts = [];
+  function resize() { cv.width = innerWidth; cv.height = innerHeight; }
+  resize();
+  addEventListener('resize', resize);
+
+  function burstConfetti() {
+    const colors = ['#ed2939', '#ffffff', '#ffd23f', '#ff4757'];
+    for (let i = 0; i < 90; i++) {
+      parts.push({
+        x: cv.width / 2 + (Math.random() - 0.5) * 200,
+        y: cv.height / 2,
+        vx: (Math.random() - 0.5) * 14,
+        vy: Math.random() * -16 - 4,
+        size: Math.random() * 8 + 4,
+        color: colors[(Math.random() * colors.length) | 0],
+        rot: Math.random() * 360,
+        vr: (Math.random() - 0.5) * 20,
+        life: 100
+      });
+    }
+  }
+  function tick() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    parts = parts.filter(p => p.life > 0);
+    for (const p of parts) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.4; p.rot += p.vr; p.life--;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot * Math.PI / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+      ctx.restore();
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+
+  /* ===================== TIKFINITY-VERBINDUNG ===================== */
+  function handleData(data) {
+    if (COUNT_MODE === 'viewers') {
+      if (data.event === 'roomUser' && data.data && data.data.viewerCount !== undefined) {
+        setCount(data.data.viewerCount);
+      } else if (data.event === 'viewerCount' && data.data !== undefined) {
+        setCount(data.data);
+      } else if (data.viewerCount !== undefined) {
+        setCount(data.viewerCount);
+      }
+    } else if (COUNT_MODE === 'keyword') {
+      const d = data.data || data;
+      const msg = (d.comment || d.message || '').toString().toLowerCase();
+      const user = d.userId || d.uniqueId || d.nickname;
+      if (msg && user && msg.includes(KEYWORD.toLowerCase())) {
+        keywordUsers.add(user);
+        setCount(keywordUsers.size);
+      }
+    }
+  }
+
+  function connect() {
+    const ws = new WebSocket('ws://localhost:21213/');
+    ws.onopen  = () => console.log('TikFinity verbunden');
+    ws.onmessage = (e) => { try { handleData(JSON.parse(e.data)); } catch (_) {} };
+    ws.onclose = () => setTimeout(connect, 3000);
+    ws.onerror = () => ws.close();
+  }
+  connect();
+
+  /* ===================== TEST OHNE TIKFINITY =====================
+     URL mit  ?demo=1  öffnen -> zählt automatisch hoch.
+     Tasten  +  /  -  zum manuellen Hoch-/Runterzaehlen. */
+  if (new URLSearchParams(location.search).get('demo') === '1') {
+    let n = 0;
+    const iv = setInterval(() => {
+      n += Math.floor(Math.random() * 6) + 2;
+      if (n >= GOAL) { n = GOAL; clearInterval(iv); }
+      setCount(n);
+    }, 600);
+  }
+  addEventListener('keydown', (e) => {
+    if (e.key === '+') setCount(current + 1);
+    if (e.key === '-') setCount(Math.max(0, current - 1));
+  });
+</script>
+</body>
+</html>
